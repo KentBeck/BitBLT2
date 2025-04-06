@@ -32,13 +32,19 @@ class WasmGenerator extends CodeGeneratorInterface {
    * @returns {void}
    */
   executeCode(generatedCode, dst, src) {
-    // If this is a placeholder, just return
+    // If this is a placeholder, perform the operation in JavaScript
     if (generatedCode.placeholder) {
       console.log(
         `WebAssembly execution skipped: ${
           generatedCode.message || "Placeholder"
         }`
       );
+
+      // If we have parameters, perform the BitBLT operation in JavaScript
+      if (generatedCode.params) {
+        this._performBitBltInJavaScript(generatedCode, dst, src);
+      }
+
       return;
     }
 
@@ -70,6 +76,12 @@ class WasmGenerator extends CodeGeneratorInterface {
         generatedCode.instance.exports.copy
       ) {
         generatedCode.instance.exports.copy();
+
+        // Since our WebAssembly module is still a no-op, we'll perform the BitBLT operation in JavaScript
+        // In a real implementation, this would be done by the WebAssembly module
+        if (generatedCode.params) {
+          this._performBitBltInJavaScript(generatedCode, dst, src);
+        }
       } else {
         console.warn("WebAssembly copy function not found");
         return;
@@ -105,9 +117,15 @@ class WasmGenerator extends CodeGeneratorInterface {
     }
 
     try {
-      // For now, let's create a minimal WebAssembly module that just exports a noop function
-      // This is just to demonstrate that we can generate and execute WebAssembly code
-      // In a real implementation, we would generate code that actually performs BitBLT
+      // Clip the operation to the bounds of both bitmaps
+      const srcMaxX = Math.min(srcX + width, src.width);
+      const srcMaxY = Math.min(srcY + height, src.height);
+      const dstMaxX = Math.min(dstX + width, dst.width);
+      const dstMaxY = Math.min(dstY + height, dst.height);
+
+      // Calculate actual dimensions after clipping
+      const actualWidth = Math.min(srcMaxX - srcX, dstMaxX - dstX);
+      const actualHeight = Math.min(srcMaxY - srcY, dstMaxY - dstY);
 
       // Create a memory to share between JS and WASM
       const srcSize = src.data.length * 4; // 4 bytes per int
@@ -119,62 +137,19 @@ class WasmGenerator extends CodeGeneratorInterface {
       const srcOffset = 0;
       const dstOffset = srcSize;
 
-      // Minimal WebAssembly module that exports a noop function
-      const binary = new Uint8Array([
-        0x00,
-        0x61,
-        0x73,
-        0x6d, // magic bytes (\0asm)
-        0x01,
-        0x00,
-        0x00,
-        0x00, // version
+      // For now, we'll use a minimal WebAssembly module
+      // In a real implementation, we would generate more complex code
+      // that actually performs the BitBLT operation
 
-        // Type section
-        0x01,
-        0x04,
-        0x01,
-        0x60,
-        0x00,
-        0x00, // Function type with no params and no results
+      // For now, we'll use a simpler approach
+      // Instead of generating WebAssembly binary directly, we'll create a placeholder
+      // and perform the actual BitBLT operation in JavaScript
 
-        // Function section
-        0x03,
-        0x02,
-        0x01,
-        0x00, // One function with type index 0
+      // In a real implementation, we would generate WebAssembly binary that performs the operation
+      // But for now, we'll just create a placeholder and do the work in executeCode
 
-        // Export section
-        0x07,
-        0x07,
-        0x01,
-        0x04,
-        0x63,
-        0x6f,
-        0x70,
-        0x79,
-        0x00,
-        0x00, // Export "copy" -> func 0
-
-        // Code section
-        0x0a,
-        0x04,
-        0x01,
-        0x02,
-        0x00,
-        0x0b, // Function body with no locals and just end
-      ]);
-
-      // Compile the WebAssembly module
-      const module = await WebAssembly.compile(binary);
-
-      // Create the instance with the memory
-      const instance = await WebAssembly.instantiate(module, {
-        env: { memory },
-      });
-
+      // Create a placeholder
       return {
-        instance,
         memory,
         srcOffset,
         dstOffset,
@@ -182,7 +157,18 @@ class WasmGenerator extends CodeGeneratorInterface {
         dstSize,
         type: "wasm",
         aligned: false,
-        binary,
+        placeholder: true,
+        message: "WebAssembly binary generation not yet implemented",
+        params: {
+          srcX,
+          srcY,
+          dstX,
+          dstY,
+          width: actualWidth,
+          height: actualHeight,
+          srcIntsPerRow: src.intsPerRow,
+          dstIntsPerRow: dst.intsPerRow,
+        },
       };
     } catch (error) {
       console.error("Error generating WebAssembly code:", error);
@@ -210,6 +196,121 @@ class WasmGenerator extends CodeGeneratorInterface {
       placeholder: true,
       message: "WebAssembly code generation not yet implemented",
     };
+  }
+
+  /**
+   * Performs a BitBLT operation in JavaScript when WebAssembly is not available.
+   *
+   * @param {Object} generatedCode - The generated code object
+   * @param {Object} dst - Destination bitmap
+   * @param {Object} src - Source bitmap
+   * @private
+   */
+  _performBitBltInJavaScript(generatedCode, dst, src) {
+    // Extract parameters
+    const {
+      srcX,
+      srcY,
+      dstX,
+      dstY,
+      width,
+      height,
+      srcIntsPerRow,
+      dstIntsPerRow,
+    } = generatedCode.params;
+
+    // Create arrays to access the bitmap data
+    const srcData = new Int32Array(
+      generatedCode.memory.buffer,
+      generatedCode.srcOffset,
+      src.data.length
+    );
+    const dstData = new Int32Array(
+      generatedCode.memory.buffer,
+      generatedCode.dstOffset,
+      dst.data.length
+    );
+
+    // Copy source data to WebAssembly memory
+    srcData.set(src.data);
+
+    // Copy destination data to WebAssembly memory
+    dstData.set(dst.data);
+
+    // Check if source and destination are the same bitmap and regions overlap
+    const sameBuffer = src === dst;
+    const overlapHorizontal =
+      sameBuffer &&
+      ((srcX < dstX && srcX + width > dstX) || // Source starts before dest and overlaps
+        (dstX < srcX && dstX + width > srcX)); // Dest starts before source and overlaps
+    const overlapVertical =
+      sameBuffer &&
+      ((srcY < dstY && srcY + height > dstY) || // Source starts before dest and overlaps
+        (dstY < srcY && dstY + height > srcY)); // Dest starts before source and overlaps
+
+    // Determine the direction to process pixels based on overlap
+    let xStart, xEnd, xStep;
+    let yStart, yEnd, yStep;
+
+    if (overlapHorizontal && srcX < dstX) {
+      // Source is to the left of destination, process right-to-left
+      xStart = width - 1;
+      xEnd = -1;
+      xStep = -1;
+    } else {
+      // No horizontal overlap or source is to the right of destination, process left-to-right
+      xStart = 0;
+      xEnd = width;
+      xStep = 1;
+    }
+
+    if (overlapVertical && srcY < dstY) {
+      // Source is above destination, process bottom-to-top
+      yStart = height - 1;
+      yEnd = -1;
+      yStep = -1;
+    } else {
+      // No vertical overlap or source is below destination, process top-to-bottom
+      yStart = 0;
+      yEnd = height;
+      yStep = 1;
+    }
+
+    // Perform the BitBLT operation
+    for (let y = yStart; y !== yEnd; y += yStep) {
+      for (let x = xStart; x !== xEnd; x += xStep) {
+        // Calculate source and destination pixel positions
+        const srcPixelX = srcX + x;
+        const srcPixelY = srcY + y;
+        const dstPixelX = dstX + x;
+        const dstPixelY = dstY + y;
+
+        // Calculate which integers in the data arrays contain these pixels
+        const srcIntIndex =
+          srcPixelY * srcIntsPerRow + Math.floor(srcPixelX / 32);
+        const dstIntIndex =
+          dstPixelY * dstIntsPerRow + Math.floor(dstPixelX / 32);
+
+        // Calculate which bits within those integers represent these pixels
+        const srcBitIndex = 31 - (srcPixelX % 32);
+        const dstBitIndex = 31 - (dstPixelX % 32);
+
+        // Extract the source pixel value (0 or 1)
+        const srcPixel = srcData[srcIntIndex] & (1 << srcBitIndex) ? 1 : 0;
+
+        // Set or clear the destination pixel based on the source pixel
+        if (srcPixel) {
+          dstData[dstIntIndex] |= 1 << dstBitIndex;
+        } else {
+          dstData[dstIntIndex] &= ~(1 << dstBitIndex);
+        }
+      }
+    }
+
+    // Copy the result back to the destination bitmap
+    for (let i = 0; i < dst.data.length; i++) {
+      dst.data[i] = dstData[i];
+    }
   }
 }
 
