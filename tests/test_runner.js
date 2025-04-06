@@ -6,6 +6,10 @@
  */
 
 const {
+  // Enums
+  BitBltOp,
+
+  // Functions
   createBitmap,
   setPixel,
   getPixel,
@@ -204,7 +208,7 @@ const testCases = [
     },
     (src, dst) => {
       // Test: Copy from source to destination
-      bitblt(dst, 8, 4, 10, 5, src, 5, 3, "copy");
+      bitblt(dst, 8, 4, 10, 5, src, 5, 3, BitBltOp.COPY);
     },
     (expected) => {
       // Expected: Rectangle should be at the new position
@@ -222,7 +226,7 @@ const testCases = [
     },
     (src, dst) => {
       // Test: AND operation
-      bitblt(dst, 5, 3, 10, 5, src, 5, 3, "and");
+      bitblt(dst, 5, 3, 10, 5, src, 5, 3, BitBltOp.AND);
     },
     (expected) => {
       // Expected: The destination is only modified within the blit rectangle
@@ -243,7 +247,7 @@ const testCases = [
     },
     (src, dst) => {
       // Test: OR operation
-      bitblt(dst, 5, 3, 10, 5, src, 5, 3, "or");
+      bitblt(dst, 5, 3, 10, 5, src, 5, 3, BitBltOp.OR);
     },
     (expected) => {
       // Expected: Union of both rectangles
@@ -262,7 +266,7 @@ const testCases = [
     },
     (src, dst) => {
       // Test: XOR operation
-      bitblt(dst, 5, 3, 10, 5, src, 5, 3, "xor");
+      bitblt(dst, 5, 3, 10, 5, src, 5, 3, BitBltOp.XOR);
     },
     (expected) => {
       // Based on the debug test, here's the correct pattern for XOR
@@ -297,7 +301,7 @@ const testCases = [
     },
     (src, dst) => {
       // Test: Copy from source to destination using aligned operation
-      bitbltAligned(dst, 0, 5, 32, 5, src, 0, 3, "copy");
+      bitbltAligned(dst, 0, 5, 32, 5, src, 0, 3, BitBltOp.COPY);
     },
     (expected) => {
       // Expected: Rectangle should be at the new position
@@ -314,7 +318,7 @@ const testCases = [
     },
     (src, dst) => {
       // Test: Try to copy beyond the bitmap boundaries
-      bitblt(dst, 25, 3, 10, 5, src, 25, 3, "copy");
+      bitblt(dst, 25, 3, 10, 5, src, 25, 3, BitBltOp.COPY);
     },
     (expected) => {
       // Expected: Only the part within bounds should be copied

@@ -3,13 +3,17 @@
  */
 
 const {
+  // Enums
+  BitBltOp,
+
+  // Functions
   createBitmap,
   setPixel,
   getPixel,
   bitblt,
   fillRect,
-  bitmapToString
-} = require('../src/bitblt');
+  bitmapToString,
+} = require("../src/bitblt");
 
 // Create source and destination bitmaps
 const src = createBitmap(32, 8);
@@ -19,16 +23,16 @@ const dst = createBitmap(32, 8);
 fillRect(src, 5, 3, 10, 5, 1);
 fillRect(dst, 8, 4, 10, 5, 1);
 
-console.log('Source bitmap:');
+console.log("Source bitmap:");
 console.log(bitmapToString(src));
 
-console.log('\nDestination before XOR:');
+console.log("\nDestination before XOR:");
 console.log(bitmapToString(dst));
 
 // Perform XOR operation
-bitblt(dst, 5, 3, 10, 5, src, 5, 3, 'xor');
+bitblt(dst, 5, 3, 10, 5, src, 5, 3, BitBltOp.XOR);
 
-console.log('\nDestination after XOR:');
+console.log("\nDestination after XOR:");
 console.log(bitmapToString(dst));
 
 // Create a bitmap to manually calculate the expected result
@@ -41,13 +45,13 @@ fillRect(expected, 8, 4, 10, 5, 1);
 for (let y = 3; y < 8; y++) {
   for (let x = 5; x < 15; x++) {
     const srcPixel = getPixel(src, x, y);
-    const originalDstPixel = (x >= 8 && x < 18 && y >= 4) ? 1 : 0;
+    const originalDstPixel = x >= 8 && x < 18 && y >= 4 ? 1 : 0;
     const xorResult = srcPixel ^ originalDstPixel;
     setPixel(expected, x, y, xorResult);
   }
 }
 
-console.log('\nManually calculated expected result:');
+console.log("\nManually calculated expected result:");
 console.log(bitmapToString(expected));
 
 // Compare the results
@@ -56,9 +60,15 @@ for (let y = 0; y < 8; y++) {
   for (let x = 0; x < 32; x++) {
     if (getPixel(dst, x, y) !== getPixel(expected, x, y)) {
       match = false;
-      console.log(`Mismatch at (${x},${y}): dst=${getPixel(dst, x, y)}, expected=${getPixel(expected, x, y)}`);
+      console.log(
+        `Mismatch at (${x},${y}): dst=${getPixel(
+          dst,
+          x,
+          y
+        )}, expected=${getPixel(expected, x, y)}`
+      );
     }
   }
 }
 
-console.log('\nResults match:', match);
+console.log("\nResults match:", match);
