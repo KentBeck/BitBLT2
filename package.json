@@ -1,0 +1,25 @@
+{
+  "name": "bitblt2",
+  "version": "0.1.0",
+  "description": "A Just-In-Time (JIT) compiled implementation of BitBLT operations",
+  "main": "src/bitblt.js",
+  "scripts": {
+    "test": "node tests/test_bitblt.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KentBeck/BitBLT2.git"
+  },
+  "keywords": [
+    "bitblt",
+    "graphics",
+    "bitmap",
+    "jit"
+  ],
+  "author": "Kent Beck",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/KentBeck/BitBLT2/issues"
+  },
+  "homepage": "https://github.com/KentBeck/BitBLT2#readme"
+}
