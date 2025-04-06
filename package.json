@@ -4,7 +4,8 @@
   "description": "A Just-In-Time (JIT) compiled implementation of BitBLT operations",
   "main": "src/bitblt.js",
   "scripts": {
-    "test": "node tests/test_bitblt.js"
+    "test": "node tests/test_bitblt.js",
+    "test:patterns": "node tests/test_runner.js"
   },
   "repository": {
     "type": "git",
