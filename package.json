@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node tests/test_bitblt.js",
     "test:patterns": "node tests/test_runner.js",
-    "test:jit": "node tests/test_jit.js"
+    "test:jit": "node tests/test_jit.js",
+    "test:wasm": "node tests/test_wasm.js"
   },
   "repository": {
     "type": "git",
