@@ -135,9 +135,48 @@ function bitblt(
   const actualWidth = Math.min(srcMaxX - srcX, dstMaxX - dstX);
   const actualHeight = Math.min(srcMaxY - srcY, dstMaxY - dstY);
 
-  // Perform the bit block transfer
-  for (let y = 0; y < actualHeight; y++) {
-    for (let x = 0; x < actualWidth; x++) {
+  // Check if source and destination are the same bitmap and regions overlap
+  const sameBuffer = src === dst;
+  const overlapHorizontal =
+    sameBuffer &&
+    ((srcX < dstX && srcX + actualWidth > dstX) || // Source starts before dest and overlaps
+      (dstX < srcX && dstX + actualWidth > srcX)); // Dest starts before source and overlaps
+  const overlapVertical =
+    sameBuffer &&
+    ((srcY < dstY && srcY + actualHeight > dstY) || // Source starts before dest and overlaps
+      (dstY < srcY && dstY + actualHeight > srcY)); // Dest starts before source and overlaps
+
+  // Determine the direction to process pixels based on overlap
+  let xStart, xEnd, xStep;
+  let yStart, yEnd, yStep;
+
+  if (overlapHorizontal && srcX < dstX) {
+    // Source is to the left of destination, process right-to-left
+    xStart = actualWidth - 1;
+    xEnd = -1;
+    xStep = -1;
+  } else {
+    // No horizontal overlap or source is to the right of destination, process left-to-right
+    xStart = 0;
+    xEnd = actualWidth;
+    xStep = 1;
+  }
+
+  if (overlapVertical && srcY < dstY) {
+    // Source is above destination, process bottom-to-top
+    yStart = actualHeight - 1;
+    yEnd = -1;
+    yStep = -1;
+  } else {
+    // No vertical overlap or source is below destination, process top-to-bottom
+    yStart = 0;
+    yEnd = actualHeight;
+    yStep = 1;
+  }
+
+  // Perform the bit block transfer with the appropriate direction
+  for (let y = yStart; y !== yEnd; y += yStep) {
+    for (let x = xStart; x !== xEnd; x += xStep) {
       const srcPixel = getPixel(src, srcX + x, srcY + y);
       const dstPixel = getPixel(dst, dstX + x, dstY + y);
 
@@ -204,12 +243,53 @@ function bitbltAligned(
   const srcStartIntX = srcX / 32;
   const dstStartIntX = dstX / 32;
 
-  // Perform the operation directly on the 32-bit integers
-  for (let y = 0; y < height; y++) {
+  // Check if source and destination are the same bitmap and regions overlap
+  const sameBuffer = src === dst;
+  const overlapHorizontal =
+    sameBuffer &&
+    ((srcStartIntX < dstStartIntX &&
+      srcStartIntX + intsPerRow > dstStartIntX) || // Source starts before dest and overlaps
+      (dstStartIntX < srcStartIntX &&
+        dstStartIntX + intsPerRow > srcStartIntX)); // Dest starts before source and overlaps
+  const overlapVertical =
+    sameBuffer &&
+    ((srcStartRow < dstStartRow && srcStartRow + height > dstStartRow) || // Source starts before dest and overlaps
+      (dstStartRow < srcStartRow && dstStartRow + height > srcStartRow)); // Dest starts before source and overlaps
+
+  // Determine the direction to process integers based on overlap
+  let iStart, iEnd, iStep;
+  let yStart, yEnd, yStep;
+
+  if (overlapHorizontal && srcStartIntX < dstStartIntX) {
+    // Source is to the left of destination, process right-to-left
+    iStart = intsPerRow - 1;
+    iEnd = -1;
+    iStep = -1;
+  } else {
+    // No horizontal overlap or source is to the right of destination, process left-to-right
+    iStart = 0;
+    iEnd = intsPerRow;
+    iStep = 1;
+  }
+
+  if (overlapVertical && srcStartRow < dstStartRow) {
+    // Source is above destination, process bottom-to-top
+    yStart = height - 1;
+    yEnd = -1;
+    yStep = -1;
+  } else {
+    // No vertical overlap or source is below destination, process top-to-bottom
+    yStart = 0;
+    yEnd = height;
+    yStep = 1;
+  }
+
+  // Perform the operation directly on the 32-bit integers with the appropriate direction
+  for (let y = yStart; y !== yEnd; y += yStep) {
     const srcRowIndex = (srcStartRow + y) * src.intsPerRow + srcStartIntX;
     const dstRowIndex = (dstStartRow + y) * dst.intsPerRow + dstStartIntX;
 
-    for (let i = 0; i < intsPerRow; i++) {
+    for (let i = iStart; i !== iEnd; i += iStep) {
       const srcInt = src.data[srcRowIndex + i];
       const dstInt = dst.data[dstRowIndex + i];
 
