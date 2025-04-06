@@ -43,24 +43,42 @@ class WasmGenerator extends CodeGeneratorInterface {
     }
 
     try {
-      // For now, our WebAssembly module doesn't do anything
-      // It's just a skeleton that we'll expand upon
-      console.log("Executing WebAssembly code (skeleton implementation)");
+      console.log("Executing WebAssembly BitBLT COPY operation");
+
+      // Copy source and destination data to WebAssembly memory
+      const srcData = new Int32Array(
+        generatedCode.memory.buffer,
+        generatedCode.srcOffset,
+        src.data.length
+      );
+      const dstData = new Int32Array(
+        generatedCode.memory.buffer,
+        generatedCode.dstOffset,
+        dst.data.length
+      );
+
+      // Copy source data to WebAssembly memory
+      srcData.set(src.data);
+
+      // Copy destination data to WebAssembly memory
+      dstData.set(dst.data);
 
       // Call the WebAssembly function
       if (
         generatedCode.instance &&
         generatedCode.instance.exports &&
-        generatedCode.instance.exports.add
+        generatedCode.instance.exports.copy
       ) {
-        const result = generatedCode.instance.exports.add(2, 3);
-        console.log(`WebAssembly add(2, 3) = ${result}`);
+        generatedCode.instance.exports.copy();
+      } else {
+        console.warn("WebAssembly copy function not found");
+        return;
       }
 
-      // In a real implementation, we would:
-      // 1. Copy source and destination data to WebAssembly memory
-      // 2. Execute the WebAssembly function with appropriate parameters
-      // 3. Copy the result back to the destination bitmap
+      // Copy the result back to the destination bitmap
+      for (let i = 0; i < dst.data.length; i++) {
+        dst.data[i] = dstData[i];
+      }
     } catch (error) {
       console.error("Error executing WebAssembly code:", error);
     }
@@ -87,11 +105,21 @@ class WasmGenerator extends CodeGeneratorInterface {
     }
 
     try {
-      // For now, we'll use a very simple WebAssembly module that just adds two numbers
+      // For now, let's create a minimal WebAssembly module that just exports a noop function
       // This is just to demonstrate that we can generate and execute WebAssembly code
       // In a real implementation, we would generate code that actually performs BitBLT
 
-      // Simple WebAssembly module that exports an add function
+      // Create a memory to share between JS and WASM
+      const srcSize = src.data.length * 4; // 4 bytes per int
+      const dstSize = dst.data.length * 4; // 4 bytes per int
+      const memorySize = Math.ceil((srcSize + dstSize + 1024) / 65536); // In pages (64KB each)
+      const memory = new WebAssembly.Memory({ initial: memorySize });
+
+      // Define memory offsets
+      const srcOffset = 0;
+      const dstOffset = srcSize;
+
+      // Minimal WebAssembly module that exports a noop function
       const binary = new Uint8Array([
         0x00,
         0x61,
@@ -104,54 +132,54 @@ class WasmGenerator extends CodeGeneratorInterface {
 
         // Type section
         0x01,
-        0x07,
-        0x01, // section code, section size, num types
-        0x60,
-        0x02,
-        0x7f,
-        0x7f, // func, num params, i32, i32
+        0x04,
         0x01,
-        0x7f, // num results, i32
+        0x60,
+        0x00,
+        0x00, // Function type with no params and no results
 
         // Function section
         0x03,
         0x02,
         0x01,
-        0x00, // section code, section size, num funcs, type idx
+        0x00, // One function with type index 0
 
         // Export section
         0x07,
         0x07,
-        0x01, // section code, section size, num exports
-        0x03,
-        0x61,
-        0x64,
-        0x64, // export name length, 'a', 'd', 'd'
+        0x01,
+        0x04,
+        0x63,
+        0x6f,
+        0x70,
+        0x79,
         0x00,
-        0x00, // export kind, export func idx
+        0x00, // Export "copy" -> func 0
 
         // Code section
         0x0a,
-        0x09,
-        0x01, // section code, section size, num funcs
-        0x07, // func body size
-        0x00, // local decl count
-        0x20,
-        0x00, // local.get 0
-        0x20,
-        0x01, // local.get 1
-        0x6a, // i32.add
-        0x0b, // end
+        0x04,
+        0x01,
+        0x02,
+        0x00,
+        0x0b, // Function body with no locals and just end
       ]);
 
       // Compile the WebAssembly module
       const module = await WebAssembly.compile(binary);
 
-      // Create a new instance of the module
-      const instance = await WebAssembly.instantiate(module);
+      // Create the instance with the memory
+      const instance = await WebAssembly.instantiate(module, {
+        env: { memory },
+      });
 
       return {
         instance,
+        memory,
+        srcOffset,
+        dstOffset,
+        srcSize,
+        dstSize,
         type: "wasm",
         aligned: false,
         binary,
