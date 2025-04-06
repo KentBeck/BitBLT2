@@ -5,7 +5,8 @@
   "main": "src/bitblt.js",
   "scripts": {
     "test": "node tests/test_bitblt.js",
-    "test:patterns": "node tests/test_runner.js"
+    "test:patterns": "node tests/test_runner.js",
+    "test:jit": "node tests/test_jit.js"
   },
   "repository": {
     "type": "git",
